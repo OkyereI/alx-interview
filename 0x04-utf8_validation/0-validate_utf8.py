@@ -1,52 +1,37 @@
 #!/usr/bin/python3
-"""
-Define validUTF8(data) function that validates whether a
-string of ints represents a valid UTF-8 encoding.
-"""
-from itertools import takewhile
-
-
-def int_to_bits(nums):
-    """
-    Helper function
-    Convert ints to bits
-    """
-    for num in nums:
-        bits = []
-        mask = 1 << 8  # cause we have 8 bits per byte. adds up to (11111111)
-        while mask:
-            mask >>= 1
-            bits.append(bool(num & mask))
-        yield bits
+""" UTF-8 validation """
 
 
 def validUTF8(data):
-    """
-    Takes a list of ints and returns true if the list is
-    a valid UTF-8 encoding, else returns false
-    Args:
-        data : List of ints representing possible UTF-8 encoding
-    Return:
-        bool : True or False
-    """
-    bits = int_to_bits(data)
-    for byte in bits:
-        # if single byte char, then valid. continue
-        if byte[0] == 0:
-            continue
-
-        # if here, byte is multi-byte char
-        ones = sum(takewhile(bool, byte))
-        if ones <= 1:
-            return False
-        if ones >= 4:  # UTF-8 can be 1 to 4 bytes long
-            return False
-
-        for _ in range(ones - 1):
-            try:
-                byte = next(bits)
-            except StopIteration:
+    """ main function """
+    flag = False
+    jump_list = {30: 3, 14: 4, 6: 5}
+    char_length = {3: 3, 4: 2, 5: 1}
+    list_length = 0
+    if (len(data) == 0) or (len(data) == 1 and data[0] >> 7 == 0):
+        return True
+    for num in data:
+        if list_length:
+            list_length -= 1
+        else:
+            flag = False
+        if len(bin(num)[2:]) == 9:
+            num = int(bin(num)[3:], 2)
+        if num >> 7 != 0 and len(bin(num)[2:]) >= 8:
+            if (not flag and num >> 6 == 2):
                 return False
-            if byte[0:2] != [1, 0]:
+            elif (flag and num >> 6 != 2):
                 return False
+            for test_point, shift in jump_list.items():
+                if num >> shift == test_point:
+                    list_length = char_length[shift]
+                    break
+            if not (list_length or flag):
+                return False
+            else:
+                flag = True
+        elif num >> 7 == 0 and flag:
+            return False
+    if list_length:
+        return False
     return True
